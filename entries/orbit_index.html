@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>One-File Procedural Solar System</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root {
+    --bg: #050712;
+    --accent: #ffd35c;
+    --accent-soft: #2b2140;
+    --panel: #0d101f;
+    --text: #f7f7ff;
+    --muted: #a0a3c2;
+    --danger: #ff5c7a;
+    --success: #5cffb3;
+    --border: #262b45;
+    --radius: 10px;
+    --shadow: 0 14px 35px rgba(0, 0, 0, 0.55);
+    --transition-fast: 0.15s ease-out;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: radial-gradient(circle at top, #14172b 0, #050712 55%, #02030a 100%);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  header {
+    padding: 10px 16px 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    color: var(--muted);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 20px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  header span {
+    font-size: 12px;
+    opacity: 0.9;
+  }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(260px, 340px);
+    grid-gap: 12px;
+    padding: 8px 12px 12px;
+  }
+
+  #viewport-wrapper {
+    position: relative;
+    border-radius: var(--radius);
+    background: radial-gradient(circle at center, #050715 0, #020106 60%, #000 100%);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  #spaceCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: transparent;
+    cursor: grab;
+  }
+
+  #hud {
+    position: absolute;
+    left: 10px;
+    bottom: 10px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    background: rgba(6, 8, 22, 0.88);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.07);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  #hud span {
+    white-space: nowrap;
+  }
+
+  #hud strong {
+    color: var(--accent);
+  }
+
+  #centerDot {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+
+  #panHint {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 6px 9px;
+    font-size: 11px;
+    border-radius: 999px;
+    background: rgba(6, 8, 22, 0.84);
+    border: 1px solid rgba(255,255,255,0.07);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+    opacity: 0.85;
+    animation: hintFade 5s ease-out forwards;
+  }
+
+  #panHint span.key {
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 1px 4px;
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(255,255,255,0.03);
+  }
+
+  @keyframes hintFade {
+    0% { opacity: 0; transform: translateY(-4px); }
+    10% { opacity: 0.9; transform: translateY(0); }
+    70% { opacity: 0.9; }
+    100% { opacity: 0; transform: translateY(-4px); }
+  }
+
+  /* Sidebar */
+
+  #sidebar {
+    border-radius: var(--radius);
+    background: radial-gradient(circle at top left, #202548 0, #0c0f21 40%, #050713 100%);
+    box-shadow: var(--shadow);
+    padding: 12px 14px 14px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #sidebar h2 {
+    margin: 0;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+
+  #systemName {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 2px 0 6px;
+  }
+
+  .tagline {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.18), transparent);
+    opacity: 0.6;
+    margin: 4px 0 6px;
+  }
+
+  .controls-section {
+    margin-bottom: 6px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    margin: 4px 0 2px;
+  }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 3px 0;
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .control-row label {
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .control-row span.value {
+    min-width: 42px;
+    text-align: right;
+    color: var(--accent);
+  }
+
+  .control-row input[type=range] {
+    flex: 1.4;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+  }
+
+  .control-row input[type=range]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(to right, #282d4f, #3f467a);
+    border-radius: 999px;
+  }
+
+  .control-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    margin-top: -4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #1d1221;
+  }
+
+  .control-row input[type=range]::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(to right, #282d4f, #3f467a);
+    border-radius: 999px;
+  }
+
+  .control-row input[type=range]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #1d1221;
+  }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle input {
+    display: none;
+  }
+
+  .toggle-slider {
+    width: 30px;
+    height: 16px;
+    border-radius: 999px;
+    background: #272a47;
+    border: 1px solid #363a5e;
+    position: relative;
+    transition: background var(--transition-fast), border var(--transition-fast);
+  }
+
+  .toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #f4f4ff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.7);
+    transition: transform var(--transition-fast);
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background: #354d6f;
+    border-color: #4f7eb4;
+  }
+
+  .toggle input:checked + .toggle-slider::after {
+    transform: translateX(12px);
+  }
+
+  button {
+    font: inherit;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: radial-gradient(circle at top left, #343a6a 0, #191c3a 55%, #0c0e21 100%);
+    color: var(--text);
+    padding: 7px 11px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border var(--transition-fast), background var(--transition-fast);
+  }
+
+  button:active {
+    transform: translateY(1px) scale(0.99);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.7) inset;
+  }
+
+  button.seed {
+    margin-top: 4px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  button span.icon {
+    font-size: 13px;
+  }
+
+  #planetList {
+    flex: 1;
+    min-height: 0;
+    padding: 4px 2px 2px;
+    overflow: auto;
+    border-radius: 8px;
+    background: radial-gradient(circle at top left, rgba(60,80,140,0.18), rgba(9,11,24,0.9));
+    border: 1px solid rgba(90,118,192,0.28);
+  }
+
+  .planet-card {
+    padding: 6px 7px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-column-gap: 8px;
+    grid-row-gap: 1px;
+    align-items: center;
+    cursor: pointer;
+    transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .planet-card:last-child {
+    margin-bottom: 0;
+  }
+
+  .planet-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(0,0,0,0.9);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  .planet-main {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+
+  .planet-name {
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .planet-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.15);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+
+  .planet-meta {
+    grid-column: 2 / 3;
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .planet-card:hover {
+    background: rgba(40,50,100,0.6);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.7);
+  }
+
+  .planet-card.active {
+    background: linear-gradient(135deg, rgba(255,211,92,0.16), rgba(111,173,255,0.26));
+    border: 1px solid rgba(255,255,255,0.35);
+  }
+
+  footer {
+    padding: 3px 14px 6px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  footer span strong {
+    color: var(--accent);
+  }
+
+  footer span.hotkey {
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.24);
+    padding: 0 3px;
+    margin-left: 4px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+
+  @media (max-width: 840px) {
+    main {
+      grid-template-columns: minmax(0, 1.4fr);
+      grid-template-rows: minmax(260px, 2fr) minmax(230px, 1.4fr);
+    }
+
+    #sidebar {
+      order: -1;
+    }
+
+    footer {
+      font-size: 9px;
+      padding-inline: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Orbifold</h1>
+  <span>Procedural solar system in &lt;1MB, one file, zero network.</span>
+</header>
+<main>
+  <section id="viewport-wrapper">
+    <canvas id="spaceCanvas"></canvas>
+    <div id="centerDot"></div>
+    <div id="panHint">
+      <span>Pan</span><span class="key">Drag</span><span>/</span><span class="key">WASD</span>
+    </div>
+    <div id="hud">
+      <span>System: <strong id="hudName">—</strong></span>
+      <span>| Planets: <strong id="hudCount">0</strong></span>
+      <span>| Time x <strong id="hudSpeed">1.0</strong></span>
+      <span id="hudFocus">| Focus: <strong>Star</strong></span>
+    </div>
+  </section>
+  <aside id="sidebar">
+    <h2>Control Deck</h2>
+    <div id="systemName">—</div>
+    <div class="tagline">Each refresh conjures a new, tiny universe. You’re just steering the clock.</div>
+    <div class="divider"></div>
+
+    <div class="controls-section">
+      <div class="section-title">Dynamics</div>
+      <div class="control-row">
+        <label for="speed">Time Scale</label>
+        <input type="range" id="speed" min="0.1" max="3" value="1" step="0.05">
+        <span class="value" id="speedVal">1.0×</span>
+      </div>
+      <div class="control-row">
+        <label for="zoom">Zoom</label>
+        <input type="range" id="zoom" min="0.4" max="2" value="1" step="0.02">
+        <span class="value" id="zoomVal">1.0×</span>
+      </div>
+      <div class="control-row">
+        <label for="density">Starfield</label>
+        <input type="range" id="density" min="30" max="250" value="140" step="10">
+        <span class="value" id="densityVal">140</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggleTrails" checked>
+        <span class="toggle-slider"></span>
+        <span>Orbital Trails</span>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="toggleWobble" checked>
+        <span class="toggle-slider"></span>
+        <span>Planet Wobble</span>
+      </label>
+    </div>
+
+    <div class="controls-section">
+      <div class="section-title">System</div>
+      <button class="seed" id="btnRegenerate">
+        <span class="icon">🎲</span>
+        New Random System <span class="hotkey">R</span>
+      </button>
+    </div>
+
+    <div class="controls-section" style="flex:1;min-height:120px;">
+      <div class="section-title">Bodies</div>
+      <div id="planetList"></div>
+    </div>
+  </aside>
+</main>
+<footer>
+  <span>Drag with mouse / use wheel to zoom. <span class="hotkey">Space</span> to pause, <span class="hotkey">R</span> to regenerate.</span>
+  <span>Made in a single HTML file. <strong>No imports. No network.</strong></span>
+</footer>
+
+<script>
+(function() {
+  "use strict";
+
+  const canvas = document.getElementById("spaceCanvas");
+  const ctx = canvas.getContext("2d");
+  const hudName = document.getElementById("hudName");
+  const hudCount = document.getElementById("hudCount");
+  const hudSpeed = document.getElementById("hudSpeed");
+  const hudFocus = document.getElementById("hudFocus");
+  const systemNameEl = document.getElementById("systemName");
+  const planetListEl = document.getElementById("planetList");
+
+  const speedSlider = document.getElementById("speed");
+  const zoomSlider = document.getElementById("zoom");
+  const densitySlider = document.getElementById("density");
+  const speedVal = document.getElementById("speedVal");
+  const zoomVal = document.getElementById("zoomVal");
+  const densityVal = document.getElementById("densityVal");
+  const regenBtn = document.getElementById("btnRegenerate");
+  const trailsToggle = document.getElementById("toggleTrails");
+  const wobbleToggle = document.getElementById("toggleWobble");
+
+  let width = 0, height = 0;
+  let centerX = 0, centerY = 0;
+  let devicePixelRatioSafe = Math.min(window.devicePixelRatio || 1, 2);
+
+  let system = null;
+  let lastTime = performance.now();
+  let running = true;
+  let zoom = 1;
+  let timeScale = 1;
+  let stars = [];
+  let starDensity = parseInt(densitySlider.value, 10);
+  let trails = trailsToggle.checked;
+  let wobble = wobbleToggle.checked;
+  let focusIndex = -1; // -1 = star, 0..N-1 planets
+
+  let pan = { x: 0, y: 0 };
+  let panTarget = { x: 0, y: 0 };
+  let dragging = false;
+  let dragStart = { x: 0, y: 0 };
+  let panStart = { x: 0, y: 0 };
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    width = rect.width;
+    height = rect.height;
+    const scale = devicePixelRatioSafe;
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    canvas.style.width = width + "px";
+    canvas.style.height = height + "px";
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    centerX = width / 2;
+    centerY = height / 2;
+  }
+
+  window.addEventListener("resize", resize);
+
+  function rand() {
+    return Math.random();
+  }
+
+  function randRange(a, b) {
+    return a + (b - a) * rand();
+  }
+
+  function choice(arr) {
+    return arr[Math.floor(rand() * arr.length)];
+  }
+
+  function generateStarfield() {
+    const total = starDensity;
+    stars = [];
+    for (let i = 0; i < total; i++) {
+      stars.push({
+        x: randRange(-width * 0.8, width * 0.8),
+        y: randRange(-height * 0.8, height * 0.8),
+        size: randRange(0.5, 1.5),
+        twinkle: randRange(0, Math.PI * 2),
+        twinkleSpeed: randRange(0.4, 1.2),
+        baseAlpha: randRange(0.05, 0.35)
+      });
+    }
+  }
+
+  function randomSystemName() {
+    const syllables = ["Or", "bi", "ta", "xel", "dra", "phi", "kor", "una", "lys", "zen", "quae", "vara", "ion", "sy", "pha", "mir", "sol", "ka", "lum", "eth"];
+    function word(len) {
+      let w = "";
+      for (let i = 0; i < len; i++) w += choice(syllables);
+      return w[0].toUpperCase() + w.slice(1);
+    }
+    const pattern = [
+      () => word(1),
+      () => word(2),
+      () => word(1) + "-" + word(1),
+      () => word(1) + " " + choice(["Cluster", "Reach", "Drift", "Crown", "Fold"]),
+      () => word(1) + " " + choice(["I", "II", "III", "IV", "V"])
+    ];
+    return choice(pattern)();
+  }
+
+  function createSystem(seed) {
+    const planetCount = Math.floor(randRange(4, 10));
+    const planets = [];
+    let baseRadius = randRange(55, 85);
+    for (let i = 0; i < planetCount; i++) {
+      const orbitRadius = baseRadius + randRange(35, 70);
+      baseRadius = orbitRadius;
+      const size = randRange(5, 17) * (1 - i / (planetCount + 3));
+      const speed = randRange(0.05, 0.25) / (1 + i * 0.2);
+      const eccentricity = randRange(0, 0.18);
+      const angle = randRange(0, Math.PI * 2);
+      const hue = randRange(0, 360);
+      const saturation = randRange(45, 90);
+      const lightness = randRange(45, 70);
+      const inner = i === 0;
+      const outer = i >= planetCount - 2;
+      const tags = [];
+      if (inner) tags.push("inner");
+      if (outer) tags.push("outer");
+      if (!inner && !outer) tags.push("mid");
+      if (size > 13) tags.push("giant");
+      else if (size < 7) tags.push("dwarf");
+      const name = generatePlanetName(i);
+      planets.push({
+        name,
+        orbitRadius,
+        size,
+        speed,
+        angle,
+        color: `hsl(${hue.toFixed(0)},${saturation.toFixed(0)}%,${lightness.toFixed(0)}%)`,
+        glowColor: `hsla(${hue.toFixed(0)},${(saturation * 0.7).toFixed(0)}%,${(lightness + 10).toFixed(0)}%,0.8)`,
+        eccentricity,
+        tilt: randRange(-0.4, 0.4),
+        wobblePhase: randRange(0, Math.PI * 2),
+        wobbleAmp: randRange(0.4, 1.6),
+        meta: {
+          year: (2 * Math.PI / speed).toFixed(1),
+          radius: orbitRadius.toFixed(0),
+          size: size.toFixed(1),
+          type: tags.join(" / ")
+        }
+      });
+    }
+    const name = randomSystemName();
+    return { name, planets };
+  }
+
+  function generatePlanetName(index) {
+    const bases = ["Ar", "Bel", "Cip", "Dru", "Eri", "Fen", "Gai", "Hal", "Ion", "Jun", "Kel", "Lom", "Mor", "Nai", "Oth", "Per", "Qua", "Rin", "Ser", "Tor", "Ur", "Vei", "Wen", "Xil", "Yor", "Zen"];
+    const ends = ["os", "ea", "ion", "or", "es", "ara", "ym", "ia", "on", "eus", "is", "orix", "arae"];
+    const numeral = ["I", "II", "III", "IV", "V", "VI"][index % 6];
+    const name = choice(bases) + choice(ends);
+    return name + " " + numeral;
+  }
+
+  function resetSystem() {
+    system = createSystem();
+    focusIndex = -1;
+    updatePlanetList();
+    systemNameEl.textContent = system.name + " System";
+    hudName.textContent = system.name;
+    hudCount.textContent = system.planets.length;
+    pan.x = pan.y = panTarget.x = panTarget.y = 0;
+  }
+
+  function updatePlanetList() {
+    planetListEl.innerHTML = "";
+    system.planets.forEach((p, i) => {
+      const card = document.createElement("div");
+      card.className = "planet-card";
+      card.dataset.index = i;
+      const swatch = document.createElement("div");
+      swatch.className = "planet-swatch";
+      swatch.style.background = p.color;
+
+      const main = document.createElement("div");
+      main.className = "planet-main";
+      const name = document.createElement("div");
+      name.className = "planet-name";
+      name.textContent = p.name;
+      const tag = document.createElement("div");
+      tag.className = "planet-tag";
+      tag.textContent = p.meta.type;
+      main.appendChild(name);
+      main.appendChild(tag);
+
+      const meta = document.createElement("div");
+      meta.className = "planet-meta";
+      meta.textContent = `Orbit ~${p.meta.radius}u • Year ~${p.meta.year}t • Size ${p.meta.size}u`;
+
+      card.appendChild(swatch);
+      card.appendChild(main);
+      card.appendChild(meta);
+      card.addEventListener("click", () => {
+        focusIndex = i;
+        highlightFocus();
+      });
+      planetListEl.appendChild(card);
+    });
+    highlightFocus();
+  }
+
+  function highlightFocus() {
+    const cards = planetListEl.querySelectorAll(".planet-card");
+    cards.forEach(c => c.classList.remove("active"));
+    let label = "Star";
+    if (focusIndex >= 0 && system.planets[focusIndex]) {
+      cards[focusIndex].classList.add("active");
+      label = system.planets[focusIndex].name;
+    }
+    hudFocus.innerHTML = `| Focus: <strong>${label}</strong>`;
+  }
+
+  function clearCanvas(alpha) {
+    if (trails && alpha > 0) {
+      ctx.fillStyle = "rgba(2,3,10," + alpha.toFixed(3) + ")";
+    } else {
+      ctx.fillStyle = "#02030b";
+    }
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function drawStarfield(time) {
+    ctx.save();
+    ctx.translate(centerX + pan.x * 0.2, centerY + pan.y * 0.2);
+    for (const s of stars) {
+      const tw = 0.6 + 0.4 * Math.sin(time * s.twinkleSpeed + s.twinkle);
+      ctx.globalAlpha = s.baseAlpha * tw;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawStar() {
+    ctx.save();
+    ctx.translate(centerX + pan.x, centerY + pan.y);
+    const radius = 18 * zoom;
+    const gradient = ctx.createRadialGradient(0,0,0,0,0,radius * 3);
+    gradient.addColorStop(0, "rgba(255,233,180,1)");
+    gradient.addColorStop(0.25, "rgba(255,206,120,0.9)");
+    gradient.addColorStop(0.6, "rgba(255,170,80,0.2)");
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = "#ffe8b2";
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function orbitToScreen(p, t) {
+    const e = p.eccentricity;
+    const r = p.orbitRadius;
+    const ang = p.angle + t * p.speed * timeScale;
+    const x = Math.cos(ang) * r * (1 + e);
+    const y = Math.sin(ang) * r * (1 - e);
+    return { x, y };
+  }
+
+  function drawPlanets(t) {
+    ctx.save();
+    ctx.translate(centerX + pan.x, centerY + pan.y);
+    ctx.scale(zoom, zoom);
+
+    // orbits
+    ctx.lineWidth = 0.6;
+    for (const p of system.planets) {
+      const r = p.orbitRadius;
+      const e = p.eccentricity;
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.07)";
+      ctx.ellipse(0, 0, r * (1 + e), r * (1 - e), 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // planets
+    for (let i = 0; i < system.planets.length; i++) {
+      const p = system.planets[i];
+      const pos = orbitToScreen(p, t);
+      let { x, y } = pos;
+
+      if (wobble) {
+        const wob = Math.sin(t * p.speed * 4 + p.wobblePhase) * p.wobbleAmp;
+        y += wob;
+      }
+
+      const glowGrad = ctx.createRadialGradient(x, y, 0, x, y, p.size * 3);
+      glowGrad.addColorStop(0, p.glowColor);
+      glowGrad.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glowGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, p.size * 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = p.color;
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // simple terminator shading
+      const shadeGrad = ctx.createRadialGradient(x - p.size * 0.5, y - p.size * 0.3, p.size * 0.2, x, y, p.size * 1.4);
+      shadeGrad.addColorStop(0, "rgba(255,255,255,0.2)");
+      shadeGrad.addColorStop(0.5, "rgba(0,0,0,0)");
+      shadeGrad.addColorStop(1, "rgba(0,0,0,0.7)");
+      ctx.fillStyle = shadeGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // focus indicator
+      if (i === focusIndex) {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255,255,255,0.9)";
+        ctx.lineWidth = 1;
+        ctx.arc(x, y, p.size + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        // gently move pan target toward focus
+        const worldX = x * zoom;
+        const worldY = y * zoom;
+        panTarget.x = -worldX;
+        panTarget.y = -worldY;
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function update(delta, now) {
+    const t = now * 0.001;
+    pan.x = lerp(pan.x, panTarget.x, 1 - Math.pow(0.001, delta));
+    pan.y = lerp(pan.y, panTarget.y, 1 - Math.pow(0.001, delta));
+
+    const alpha = trails ? 0.15 : 1;
+    clearCanvas(alpha);
+    drawStarfield(t);
+    drawStar();
+    drawPlanets(t);
+  }
+
+  function loop(now) {
+    const dt = Math.min(100, now - lastTime);
+    lastTime = now;
+    if (running) {
+      update(dt / 16.67, now);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Controls
+  speedSlider.addEventListener("input", () => {
+    timeScale = parseFloat(speedSlider.value);
+    speedVal.textContent = timeScale.toFixed(1) + "×";
+    hudSpeed.textContent = timeScale.toFixed(1);
+  });
+
+  zoomSlider.addEventListener("input", () => {
+    zoom = parseFloat(zoomSlider.value);
+    zoomVal.textContent = zoom.toFixed(1) + "×";
+  });
+
+  densitySlider.addEventListener("input", () => {
+    starDensity = parseInt(densitySlider.value, 10);
+    densityVal.textContent = starDensity;
+    generateStarfield();
+  });
+
+  trailsToggle.addEventListener("change", () => {
+    trails = trailsToggle.checked;
+  });
+
+  wobbleToggle.addEventListener("change", () => {
+    wobble = wobbleToggle.checked;
+  });
+
+  regenBtn.addEventListener("click", () => {
+    resetSystem();
+    generateStarfield();
+  });
+
+  // Mouse / touch pan
+  canvas.addEventListener("mousedown", (e) => {
+    dragging = true;
+    canvas.style.cursor = "grabbing";
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+    panStart.x = panTarget.x;
+    panStart.y = panTarget.y;
+    focusIndex = focusIndex; // keep
+  });
+
+  window.addEventListener("mouseup", () => {
+    dragging = false;
+    canvas.style.cursor = "grab";
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    panTarget.x = panStart.x + dx;
+    panTarget.y = panStart.y + dy;
+    focusIndex = -1;
+    highlightFocus();
+  });
+
+  // Wheel zoom (no network, just local)
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    const factor = delta > 0 ? 0.92 : 1.08;
+    zoom = Math.min(2, Math.max(0.4, zoom * factor));
+    zoomSlider.value = zoom.toFixed(2);
+    zoomVal.textContent = zoom.toFixed(1) + "×";
+  }, { passive: false });
+
+  // Keyboard controls
+  window.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      running = !running;
+    } else if (e.key === "r" || e.key === "R") {
+      resetSystem();
+      generateStarfield();
+    } else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+      panTarget.y += 20;
+      focusIndex = -1; highlightFocus();
+    } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") {
+      panTarget.y -= 20;
+      focusIndex = -1; highlightFocus();
+    } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
+      panTarget.x += 20;
+      focusIndex = -1; highlightFocus();
+    } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+      panTarget.x -= 20;
+      focusIndex = -1; highlightFocus();
+    }
+  });
+
+  // Init
+  resize();
+  resetSystem();
+  generateStarfield();
+  speedVal.textContent = timeScale.toFixed(1) + "×";
+  zoomVal.textContent = zoom.toFixed(1) + "×";
+  densityVal.textContent = starDensity;
+  hudSpeed.textContent = timeScale.toFixed(1);
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
